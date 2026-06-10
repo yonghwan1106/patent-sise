@@ -1,0 +1,62 @@
+{
+  "source": "sample",
+  "inputNumber": "1020170054321",
+  "bibliography": {
+    "applicationNumber": "1020170054321",
+    "registerNumber": "1019998870000",
+    "inventionTitle": "(시연샘플) 생분해성 셀룰로오스 기반 친환경 식품 포장소재",
+    "applicationDate": "20170427",
+    "registerDate": "20190118",
+    "openDate": "20181106",
+    "claimCount": 7,
+    "ipcCodes": ["C08L 1/02", "B65D 65/46", "C08J 5/18"],
+    "applicantName": "(시연샘플) 그린팩 주식회사",
+    "priorityNumber": "1020160030000",
+    "familyCount": 2
+  },
+  "registerStatus": {
+    "legalStatus": "등록",
+    "registered": true,
+    "lastPaidYear": 7,
+    "annualFees": [
+      { "paymentYear": 1, "paymentDate": "20190118" },
+      { "paymentYear": 2, "paymentDate": "20190118" },
+      { "paymentYear": 3, "paymentDate": "20200110" },
+      { "paymentYear": 4, "paymentDate": "20210112" },
+      { "paymentYear": 5, "paymentDate": "20220114" },
+      { "paymentYear": 6, "paymentDate": "20230110" },
+      { "paymentYear": 7, "paymentDate": "20240115" }
+    ],
+    "rightHolders": ["(시연샘플) 그린팩 주식회사"],
+    "termExpiryDate": "20370427",
+    "extinctDate": null,
+    "extinctReason": null
+  },
+  "rightChanges": {
+    "records": [
+      { "rank": 1, "holderName": "(시연샘플) 그린팩 주식회사", "changeDate": "20190118", "changeType": "설정등록" }
+    ],
+    "transferCount": 0
+  },
+  "trials": {
+    "records": [
+      {
+        "trialType": "무효심판",
+        "trialNumber": "2024당1234",
+        "status": "계류",
+        "alive": true,
+        "result": null
+      }
+    ]
+  },
+  "citations": {
+    "backward": [
+      { "citedDocNumber": "1020140022222", "citedTitle": "(시연샘플) 생분해성 고분자 필름" },
+      { "citedDocNumber": "1020150033333", "citedTitle": "(시연샘플) 셀룰로오스 나노섬유 복합재" },
+      { "citedDocNumber": "EP2015-112233", "citedTitle": "(시연샘플) Biodegradable food packaging material" },
+      { "citedDocNumber": "1020160011111", "citedTitle": "(시연샘플) 친환경 완충 포장재" }
+    ],
+    "forward": [],
+    "forwardAvailable": false
+  }
+}

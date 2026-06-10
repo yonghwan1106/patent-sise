@@ -1,0 +1,164 @@
+@import "tailwindcss";
+
+/* ============================================================
+   특허시세 디자인 시스템 — "핀테크 여신 대시보드"
+   네이비(신뢰) × 민트/그린(시그널) × 라이트 그레이 표면
+   ============================================================ */
+
+@theme {
+  --color-navy: #0b1f3a; /* 딥 네이비 (primary ink/bg) */
+  --color-navy2: #122b4f;
+  --color-navy3: #1c3a66;
+  --color-slate: #2f4a6b; /* 보조 네이비 */
+  --color-mint: #1fbf9c; /* 민트 (accent / pass) */
+  --color-mint2: #14a888;
+  --color-mintsoft: #d6f5ee;
+  --color-emerald: #0e9f6e; /* 그린 (positive) */
+  --color-gold: #c79a3a; /* 등급 강조(상위) */
+  --color-amber: #d98a2b; /* 주의 */
+  --color-rose: #d64545; /* 위험 / fail */
+  --color-rosesoft: #fbe2e2;
+
+  --color-paper: #f5f7fa; /* 페이지 배경 */
+  --color-surface: #ffffff; /* 카드 표면 */
+  --color-surface2: #eef2f7;
+  --color-line: #dde4ee; /* 헤어라인 */
+  --color-line2: #c8d3e2;
+  --color-ink: #0b1f3a; /* 본문 잉크 */
+  --color-muted: #5b6b82; /* 뮤트 텍스트 */
+  --color-faint: #8a97aa;
+
+  --font-display: "Pretendard", "IBM Plex Sans KR", system-ui, sans-serif;
+  --font-sans: "Pretendard", "IBM Plex Sans KR", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", "Courier New", monospace;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  background-color: var(--color-paper);
+  letter-spacing: -0.01em;
+}
+
+/* ---- 공통 유틸 ---- */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(11, 31, 58, 0.04), 0 6px 20px rgba(11, 31, 58, 0.05);
+}
+
+.hairline {
+  border: none;
+  border-top: 1px solid var(--color-line);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-line2);
+  background: var(--color-surface2);
+  color: var(--color-slate);
+}
+
+.badge-mint {
+  background: var(--color-mintsoft);
+  border-color: transparent;
+  color: var(--color-mint2);
+}
+
+.badge-rose {
+  background: var(--color-rosesoft);
+  border-color: transparent;
+  color: var(--color-rose);
+}
+
+.badge-amber {
+  background: #fbeedd;
+  border-color: transparent;
+  color: var(--color-amber);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 히어로 그라데이션 */
+.hero-grad {
+  background:
+    radial-gradient(1200px 500px at 15% -10%, rgba(31, 191, 156, 0.16), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(28, 58, 102, 0.55), transparent 60%),
+    linear-gradient(160deg, var(--color-navy) 0%, var(--color-navy2) 60%, var(--color-navy3) 100%);
+}
+
+.btn-primary {
+  background: var(--color-mint);
+  color: #04261f;
+  font-weight: 700;
+  border-radius: 10px;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+.btn-primary:hover {
+  background: var(--color-mint2);
+}
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+/* 등급 배지 색상 */
+.grade-A { background: linear-gradient(145deg, #0e9f6e, #0b8a5e); }
+.grade-B { background: linear-gradient(145deg, #1fbf9c, #14a888); }
+.grade-C { background: linear-gradient(145deg, #c79a3a, #b4882e); }
+.grade-D { background: linear-gradient(145deg, #d98a2b, #c2761f); }
+.grade-E { background: linear-gradient(145deg, #d64545, #b83838); }
+
+/* ============================================================
+   인쇄(은행 제출용 1페이지) — print CSS
+   ============================================================ */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 14mm 16mm 14mm;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #c8d3e2 !important;
+    break-inside: avoid;
+  }
+  .print-compact {
+    font-size: 11px !important;
+  }
+}
+
+.print-only {
+  display: none;
+}
