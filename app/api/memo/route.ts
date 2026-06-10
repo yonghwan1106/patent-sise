@@ -16,15 +16,31 @@ const MODEL = "claude-haiku-4-5-20251001";
 
 const SYSTEM_PROMPT = `당신은 은행 여신심사역에게 제출되는 IP담보 사전진단 메모를 작성하는 분석가입니다.
 
-작성 규칙:
+[점수·등급 엄수 규칙 — 최우선 적용]
+- 입력 JSON에 totalScore, grade, axes 값이 명시되어 있습니다.
+- 본문에 점수나 등급을 언급할 경우 반드시 입력 JSON의 값을 그대로 인용해야 합니다.
+- 입력에 없는 점수·수치를 절대 생성하거나 계산하지 마세요.
+- 각 축(권리성·기술성·활용성·금융적합성)의 평가는 점수 재산정이 아니라 입력 점수의 근거 서술입니다.
+- 종합점수·등급·4축 점수는 메모 첫머리에 한 줄로 요약하지 마세요. 클라이언트에서 별도 렌더합니다.
+
+[일반 작성 규칙]
 - 모든 판단 문장에 [KIPRIS 등록사항: ○○] [KIPRIS 권리자변동: ○○] [KIPRIS 심판사항: ○○] [KIPRIS 특허서지: ○○] [KIPRIS 인용문헌: ○○] [KIPRIS 피인용문헌: ○○] 형식으로 원천 데이터 근거를 인용하세요.
 - 결측 지표는 반드시 N/A로 명시하고 추정하지 마세요. 데이터에 없는 사실을 만들어내지 마세요.
-- 점수·등급은 코드에서 이미 산출되었습니다. 당신은 그 근거를 서술할 뿐 점수를 바꾸지 않습니다.
-- 구성: ①담보 적격성 관문 판정 요약 ②권리 안정성 ③기술·활용성 ④여신 의견(담보 가능/조건부/부적합)으로 4개 단락.
-- 은행 심사역이 읽는 간결하고 단정한 실무 문체. 단락당 3~5문장.
+- 구성: ①담보 적격성 관문 판정 요약 ②권리 안정성 ③기술·활용성 ④여신 참고 의견으로 4개 단락.
+- 여신 참고 의견 단락은 "담보 설정 가능" 같은 단정적 판정 표현 대신 "담보 설정 가능성이 있는 것으로 참고됩니다" 같은 참고 의견 형태로 작성하세요.
+- 진단일은 입력 JSON의 diagnosisDate 값을 그대로 사용하세요.
+- 은행 심사역이 읽는 간결한 실무 문체. 단락당 3~5문장.
 - 마지막 줄에 정확히 다음 고지를 포함하세요: "본 메모는 참고용 사전진단으로 공식 특허가치평가를 대체하지 않습니다."`;
 
+/** KST 오늘 날짜 YYYY-MM-DD */
+function todayKST(): string {
+  // UTC+9
+  const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return now.toISOString().slice(0, 10);
+}
+
 function buildUserPrompt(a: Assessment): string {
+  const diagnosisDate = todayKST();
   const lines = a.metrics.map(
     (m) => `- 지표${m.id} ${m.label}: ${m.value} (신뢰도 ${m.confidence}, 출처 ${m.source})`
   );
@@ -39,9 +55,12 @@ function buildUserPrompt(a: Assessment): string {
   return [
     `[대상 특허] ${a.raw.bibliography.inventionTitle} (입력번호 ${a.raw.inputNumber})`,
     `[데이터 출처] ${a.raw.source === "sample" ? "데모 샘플 데이터" : "KIPRIS 실데이터"}`,
+    `[진단일] ${diagnosisDate}  ← 메모에 진단일 기재 시 이 값을 그대로 사용하세요.`,
     ``,
-    `[코드 직산 결과] 종합점수 ${a.totalScore}점 / 담보적합 등급 ${a.grade}`,
-    `[4축 점수] ${a.axes.map((x) => `${x.label} ${x.score}`).join(" · ")}`,
+    `[코드 직산 결과 — 이 값만 사용, 임의 수치 생성 금지]`,
+    `  종합점수: ${a.totalScore}점`,
+    `  담보적합 등급: ${a.grade}`,
+    `  4축 점수: ${a.axes.map((x) => `${x.label} ${x.score}점`).join(" / ")}`,
     ``,
     `[담보 적격성 관문]`,
     ...gateLines,
@@ -49,7 +68,9 @@ function buildUserPrompt(a: Assessment): string {
     `[정량지표 13종]`,
     ...lines,
     ``,
-    `위 데이터만 근거로 여신심사 메모를 작성하세요. 데이터에 없는 내용은 쓰지 마세요.`,
+    `위 데이터만 근거로 여신심사 메모를 작성하세요.`,
+    `점수·등급은 위 [코드 직산 결과]의 값을 그대로 인용하고, 입력에 없는 수치를 절대 생성하지 마세요.`,
+    `데이터에 없는 내용은 쓰지 마세요.`,
   ].join("\n");
 }
 
