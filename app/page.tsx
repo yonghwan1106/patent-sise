@@ -5,9 +5,9 @@ import { listSamples } from "@/lib/kipris";
 export default function Home() {
   const samples = listSamples();
   const sampleMeta = [
-    { tagLabel: "이차전지 분리막", desc: "단독 권리 · 무심판 — 담보 적격 통과 사례" },
-    { tagLabel: "AI 진단보조 SW", desc: "공유 특허 — 관문 주의 사례" },
-    { tagLabel: "친환경 포장소재", desc: "무효심판 계류 — 관문 미통과 사례" },
+    { tagLabel: "수처리·분리막 B01D", desc: "등록 유지 · 단독 권리 · 피인용 4건 — 관문 통과 사례" },
+    { tagLabel: "전기·배전반 H02B", desc: "등록 유지 · 대기업 권리자 — 관문 통과 사례" },
+    { tagLabel: "에너지·탄화 C10B", desc: "등록료 미납 포기 — 관문 미통과(법적상태) 사례" },
   ];
 
   return (
@@ -51,14 +51,14 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-5 py-12">
         <div className="flex items-end justify-between">
           <div>
-            <div className="kicker">DEMO · 원클릭 시연</div>
-            <h2 className="mt-1 text-xl font-bold text-navy">샘플 특허로 바로 체험</h2>
+            <div className="kicker">KIPRIS 실데이터 · 원클릭 시연</div>
+            <h2 className="mt-1 text-xl font-bold text-navy">실존 특허로 바로 체험</h2>
           </div>
-          <span className="badge badge-amber">데모 샘플 데이터</span>
+          <span className="badge badge-mint">KIPRIS 실데이터</span>
         </div>
         <p className="mt-2 text-sm text-muted">
-          현재 KIPRIS API 활용신청 전 단계라, 아래 시연용 가상 특허(명칭에 “(시연샘플)” 표기)로 동작을 확인할 수 있습니다.
-          실데이터 전환 시 코드 수정 없이 동일하게 작동합니다.
+          KIPRIS Plus OpenAPI에서 실시간 취득한 공개 특허 데이터를 기반으로 진단합니다.
+          아래 특허번호를 직접 입력하거나 카드를 클릭해 리포트를 확인하세요.
         </p>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-3">

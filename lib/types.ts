@@ -34,17 +34,19 @@ export const KIPRIS_API_LABEL: Record<KiprisApi, string> = {
 /** 서지정보 — 특허실용신안 정보검색(15058788) */
 export interface Bibliography {
   applicationNumber: string; // 출원번호
-  registerNumber: string | null; // 등록번호
+  registerNumber: string | null; // 등록번호 (원문 예: "10-1513250-0000")
   inventionTitle: string; // 발명의 명칭
-  applicationDate: string | null; // 출원일 YYYYMMDD
-  registerDate: string | null; // 등록일 YYYYMMDD
-  openDate: string | null; // 공개일 YYYYMMDD
+  applicationDate: string | null; // 출원일 YYYYMMDD 또는 YYYY.MM.DD
+  registerDate: string | null; // 등록일
+  openDate: string | null; // 공개일
   claimCount: number | null; // 청구항 수
   ipcCodes: string[]; // IPC 분류기호
   applicantName: string | null; // 출원인
-  // 우선권/패밀리 — 데이터 없으면 null → 지표11 N/A
-  priorityNumber: string | null;
-  familyCount: number | null;
+  priorityNumber: string | null; // 우선권 번호 (없으면 null → 지표 N/A)
+  familyCount: number | null; // 패밀리 수 (없으면 null)
+  // 서지 API 부가 필드 (법적상태·최종처분 — 등록사항 API 체이닝 전 보조 판정용)
+  registerStatus: string | null; // 예: "등록" | "소멸" | "포기" | "거절"
+  finalDisposal: string | null; // 예: "등록결정(일반)" | "포기(등록료 미납)"
 }
 
 /** 연차료 납부 1건 */

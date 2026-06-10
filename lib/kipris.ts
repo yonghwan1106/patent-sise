@@ -1,25 +1,49 @@
 // ============================================================
-//  lib/kipris.ts — KIPRIS REST API 6종 연동
+//  lib/kipris.ts — KIPRIS Plus 6종 API 연동 (실측 확정 2026-06-10)
 //  호출 우선순위: ①KIPRIS Plus(plus.kipris.or.kr) → ②data.go.kr → ③샘플 폴백
-//  + 파일 캐시 (월 1,000회 쿼터 방어)
+//  + 파일 캐시 (월 쿼터 방어)
 // ============================================================
 //
-//  연동 대상 6종:
-//   1) 특허실용신안 정보검색  15058788  — 서지(명칭·출원/등록일·청구항수·IPC·우선권·패밀리)
-//      op  : getBibliographyDetailInfoSearch (서지 상세)
-//      param: applicationNumber 또는 registerNumber, ServiceKey
-//   2) 등록사항(법적상태)      15058125  — 등록번호·등록일·청구항수·존속기간만료일·소멸일·소멸원인·권리자정보·등록료(연차료)
-//      ※ 권리이전(변동)은 본 API가 아님 → 아래 (3)에서 취득.
-//   3) 권리자 변동 이력        15058608  — 권리자 순위·성명·변동일자 (권리이전·공유 변동의 정식 출처)
-//   4) 심판사항                15065474  — 무효/권리범위확인 심판 이력
-//   5) 심사인용문헌            15057617  — 후방인용(backward, 이 특허가 인용한 선행문헌)
-//   6) 특허·실용 피인용문헌    15002128  — 전방인용(forward, 이 특허를 인용한 후행문헌), 월 1,000회 무료
+//  연동 6종 (실측 검증 완료):
+//  ┌──┬────────────────┬────────────────────────────────────────────────────────────────────────────┐
+//  │ # │ 역할           │ URL (실측 확정)                                                            │
+//  ├──┼────────────────┼────────────────────────────────────────────────────────────────────────────┤
+//  │ 1 │ 서지           │ kipo-api/kipi/patUtiModInfoSearchSevice/getBibliographyDetailInfoSearch    │
+//  │   │                │  param: applicationNumber | registerNumber, ServiceKey                     │
+//  │   │                │  응답: <biblioSummaryInfo> 블록                                            │
+//  ├──┼────────────────┼────────────────────────────────────────────────────────────────────────────┤
+//  │ 2 │ 등록사항       │ openapi/rest/RegistrationService/registrationInfo                          │
+//  │   │                │  param: registrationNumber(13자리 등록번호), accessKey                     │
+//  │   │                │  응답: <registrationInfo> / <registrationFeeInfo> 블록                    │
+//  │   │                │  ※ resultCode 빈값이 정상 — items 존재 여부로 성공 판정                   │
+//  ├──┼────────────────┼────────────────────────────────────────────────────────────────────────────┤
+//  │ 3 │ 권리자 변동    │ openapi/rest/RightHolderService/rightHolderInfo                            │
+//  │   │                │  param: registrationNumber(13자리), accessKey                              │
+//  │   │                │  ⚠️ 등록번호 필수 — 서지 응답에서 먼저 추출 후 체이닝 호출                │
+//  │   │                │  응답: <rightHolderInfo> 블록, rankCorrelatorType=권리자 필터              │
+//  ├──┼────────────────┼────────────────────────────────────────────────────────────────────────────┤
+//  │ 4 │ 심판           │ openapi/rest/judgmentInfoSearchService/applicationNumberSearchInfo          │
+//  │   │                │  param: applicationNumber, docsStart=1, accessKey                          │
+//  │   │                │  응답: <TotalSearchCount> + <TrialInfo> 블록                               │
+//  ├──┼────────────────┼────────────────────────────────────────────────────────────────────────────┤
+//  │ 5 │ 후방인용       │ openapi/rest/CitationService/citationInfoV3                                │
+//  │   │                │  param: applicationNumber, accessKey                                       │
+//  │   │                │  응답: <citationInfoV3> 블록, OriginalcitationLiteraturenumber             │
+//  ├──┼────────────────┼────────────────────────────────────────────────────────────────────────────┤
+//  │ 6 │ 전방인용(피인용)│ openapi/rest/CitingService/citingInfo                                     │
+//  │   │                │  param: standardCitationApplicationNumber, accessKey                       │
+//  │   │                │  응답: <citingInfo> 블록, ApplicationNumber                                │
+//  └──┴────────────────┴────────────────────────────────────────────────────────────────────────────┘
 //
-//  ※ KIPRIS Plus 키(KIPRIS_PLUS_ACCESS_KEY) 로 우선 호출.
-//    resultCode 30(SERVICE KEY IS NOT REGISTERED) 또는
-//    31(DEADLINE_HAS_EXPIRED — 상품 미신청)이면 data.go.kr 키로 재시도.
-//    data.go.kr 도 실패하면 data/samples/ 샘플 폴백.
-//    상품 신청 완료 후 코드 수정 없이 실데이터 전환됨.
+//  키 파라미터:
+//   - API 1(kipo-api 계열): ServiceKey
+//   - API 2~6(openapi/rest 계열): accessKey
+//   - 키 값은 KIPRIS_PLUS_ACCESS_KEY 동일 (URL 인코딩 필수)
+//
+//  폴백 체인:
+//   ① KIPRIS_PLUS_ACCESS_KEY → plus.kipris.or.kr
+//   ② DATA_GO_KR_SERVICE_KEY → kipo-api.kipi.or.kr (openapi/rest 계열은 Plus만 지원, 서지만 폴백)
+//   ③ 샘플 JSON (data/samples/)
 
 import fs from "fs";
 import path from "path";
@@ -37,70 +61,57 @@ import type {
 } from "./types";
 
 // ------------------------------------------------------------
-//  엔드포인트 상수 (활용신청 완료 후 여기만 검증/교체) — 상품번호 주석 명시
-//  KIPRIS Plus base: http://plus.kipris.or.kr/kipo-api/kipi/{service}/{operation}
-//  data.go.kr base : http://kipo-api.kipi.or.kr/openapi/service/{service}/{operation}
+//  엔드포인트 (실측 확정 2026-06-10)
 // ------------------------------------------------------------
-const ENDPOINTS = {
-  // 15058788 특허실용신안 정보검색(서지)
-  bibliography: {
+const EP = {
+  // API 1: 서지 — kipo-api 계열, ServiceKey 파라미터
+  bib: {
     plus: "http://plus.kipris.or.kr/kipo-api/kipi/patUtiModInfoSearchSevice/getBibliographyDetailInfoSearch",
     datagokr: "http://kipo-api.kipi.or.kr/openapi/service/patUtiModInfoSearchSevice/getBibliographyDetailInfoSearch",
   },
-  // 15058125 등록사항(법적상태)
-  registerStatus: {
-    plus: "http://plus.kipris.or.kr/kipo-api/kipi/patUtiModInfoSearchSevice/getRegisterStatusSearchInfo",
-    datagokr: "http://kipo-api.kipi.or.kr/openapi/service/patUtiModInfoSearchSevice/getRegisterStatusSearchInfo",
-  },
-  // 15058608 권리자 변동 이력
-  rightChange: {
-    plus: "http://plus.kipris.or.kr/kipo-api/kipi/RightHolderChangeService/getRightHolderChangeInfo",
-    datagokr: "http://kipo-api.kipi.or.kr/openapi/service/RightHolderChangeService/getRightHolderChangeInfo",
-  },
-  // 15065474 심판사항
-  trial: {
-    plus: "http://plus.kipris.or.kr/kipo-api/kipi/TrialInfoSearchService/getTrialInfoSearch",
-    datagokr: "http://kipo-api.kipi.or.kr/openapi/service/TrialInfoSearchService/getTrialInfoSearch",
-  },
-  // 15057617 심사인용문헌(후방인용 backward)
-  citationBackward: {
-    plus: "http://plus.kipris.or.kr/kipo-api/kipi/CitingPatentService/getCitationInfoSearch",
-    datagokr: "http://kipo-api.kipi.or.kr/openapi/service/CitingPatentService/getCitationInfoSearch",
-  },
-  // 15002128 특허·실용 피인용문헌(전방인용 forward)
-  citationForward: {
-    plus: "http://plus.kipris.or.kr/kipo-api/kipi/CitedPatentService/getCitedInfoSearch",
-    datagokr: "http://kipo-api.kipi.or.kr/openapi/service/CitedPatentService/getCitedInfoSearch",
-  },
+  // API 2: 등록사항 — openapi/rest 계열, accessKey, registrationNumber 필수
+  reg: "http://plus.kipris.or.kr/openapi/rest/RegistrationService/registrationInfo",
+  // API 3: 권리자 변동 — openapi/rest 계열, accessKey, registrationNumber 필수
+  rightHolder: "http://plus.kipris.or.kr/openapi/rest/RightHolderService/rightHolderInfo",
+  // API 4: 심판 — openapi/rest 계열, docsStart 필수
+  trial: "http://plus.kipris.or.kr/openapi/rest/judgmentInfoSearchService/applicationNumberSearchInfo",
+  // API 5: 후방인용
+  citBack: "http://plus.kipris.or.kr/openapi/rest/CitationService/citationInfoV3",
+  // API 6: 전방인용(피인용), 파라미터명 standardCitationApplicationNumber
+  citFwd: "http://plus.kipris.or.kr/openapi/rest/CitingService/citingInfo",
 } as const;
 
 const CACHE_DIR = path.join(process.cwd(), ".cache");
 const SAMPLE_DIR = path.join(process.cwd(), "data", "samples");
-const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_MS = 10000;
 
-// resultCode 30 = SERVICE KEY IS NOT REGISTERED
-// resultCode 31 = DEADLINE_HAS_EXPIRED (상품 미신청)
-// resultCode 20 = 미신청 / 22 = 횟수초과
-const FALLBACK_CODES = ["20", "22", "30", "31"];
+// openapi/rest 계열은 resultCode 빈값이 정상.
+// 명시적 오류코드(10·11·20·22·30·31)가 있을 때만 폴백.
+const ERROR_CODES = ["10", "11", "20", "22", "30", "31"];
 
 // ------------------------------------------------------------
-//  입력 번호 정규화 (하이픈/공백 제거)
+//  입력 번호 정규화
 // ------------------------------------------------------------
 export function normalizeNumber(input: string): string {
   return (input || "").replace(/[^0-9]/g, "");
 }
 
-/** 출원번호(13자리, 보통 10/20/40 시작) vs 등록번호(13자리) 추정 — 파라미터 선택용 */
+/** 서지 응답의 registerNumber (예: "10-1513250-0000") → 13자리 digits */
+function toRegistrationNumber(raw: string | null): string | null {
+  if (!raw || !raw.trim()) return null;
+  const digits = raw.replace(/[^0-9]/g, "");
+  return digits.length >= 10 ? digits.padEnd(13, "0").slice(0, 13) : null;
+}
+
 function isApplicationNumber(num: string): boolean {
   if (num.length < 11) return true;
-  const yearGuess = Number(num.slice(2, 6));
-  return yearGuess >= 1948 && yearGuess <= 2099;
+  const yr = Number(num.slice(2, 6));
+  return yr >= 1948 && yr <= 2099;
 }
 
 // ------------------------------------------------------------
-//  경량 XML 파서 (의존성 없이 KIPRIS 응답 처리)
+//  경량 XML 파서
 // ------------------------------------------------------------
-
 function tag(xml: string, name: string): string | null {
   const re = new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "i");
   const m = xml.match(re);
@@ -119,8 +130,8 @@ function tagAll(xml: string, name: string): string[] {
   return out;
 }
 
-function blocks(xml: string, name = "item"): string[] {
-  const re = new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "gi");
+function blocks(xml: string, name: string): string[] {
+  const re = new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, "gi");
   const out: string[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(xml)) !== null) out.push(m[1]);
@@ -130,84 +141,86 @@ function blocks(xml: string, name = "item"): string[] {
 function decodeXml(s: string): string {
   return s
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'").replace(/&amp;/g, "&")
+    .replace(/&#034;/g, '"')
     .trim();
 }
 
-function toIntOrNull(s: string | null): number | null {
+function toInt(s: string | null): number | null {
   if (s == null) return null;
   const n = Number(s.replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(n) ? n : null;
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-function resultCode(xml: string): string | null {
-  return tag(xml, "resultCode") ?? tag(xml, "returnReasonCode") ?? null;
+/** openapi/rest 응답에서 명시적 오류코드 감지 */
+function hasErrorCode(xml: string): boolean {
+  const re = new RegExp(`<resultCode>([\\s\\S]*?)</resultCode>`, "i");
+  const m = xml.match(re);
+  if (!m) return false;
+  const code = m[1].trim();
+  if (!code) return false; // 빈값 = 정상
+  return ERROR_CODES.includes(code);
+}
+
+/** items 블록이 존재하면 성공으로 간주 (resultCode 빈값 허용) */
+function hasItems(xml: string): boolean {
+  return /<items>/i.test(xml);
 }
 
 // ------------------------------------------------------------
-//  파일 캐시 (월 1,000회 쿼터 방어)
+//  파일 캐시
 // ------------------------------------------------------------
-function cacheKey(num: string): string {
-  return path.join(CACHE_DIR, `${num}.json`);
-}
-
 function readCache(num: string): PatentRaw | null {
   try {
-    const p = cacheKey(num);
+    const p = path.join(CACHE_DIR, `${num}.json`);
     if (!fs.existsSync(p)) return null;
     return JSON.parse(fs.readFileSync(p, "utf-8")) as PatentRaw;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function writeCache(num: string, data: PatentRaw): void {
   try {
     if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
-    fs.writeFileSync(cacheKey(num), JSON.stringify(data, null, 2), "utf-8");
-  } catch {
-    // 캐시 실패는 치명적이지 않음
-  }
+    fs.writeFileSync(path.join(CACHE_DIR, `${num}.json`), JSON.stringify(data, null, 2), "utf-8");
+  } catch { /* 캐시 실패는 무시 */ }
 }
 
 // ------------------------------------------------------------
 //  샘플 폴백
 // ------------------------------------------------------------
-const SAMPLE_FILES = ["sample-battery.json", "sample-ai-dx.json", "sample-eco-pkg.json"];
+const SAMPLE_MAP: Record<string, string> = {
+  "1020130028607": "sample-hollow-fiber.json",
+  "1020120089012": "sample-switchboard.json",
+  "1020150057832": "sample-carbonizer.json",
+};
+const DEFAULT_SAMPLE = "sample-hollow-fiber.json";
+const ALL_SAMPLE_FILES = Object.values(SAMPLE_MAP);
 
 function loadSample(num: string): PatentRaw {
-  const map: Record<string, string> = {
-    "1020210012345": "sample-battery.json",
-    "1020190098765": "sample-ai-dx.json",
-    "1020170054321": "sample-eco-pkg.json",
-  };
-  const file = map[num] ?? SAMPLE_FILES[0];
+  const file = SAMPLE_MAP[num] ?? DEFAULT_SAMPLE;
   const p = path.join(SAMPLE_DIR, file);
-  const data = JSON.parse(fs.readFileSync(p, "utf-8")) as PatentRaw;
+  // 샘플 파일 없으면 첫 번째 파일로 폴백
+  const actualP = fs.existsSync(p) ? p : path.join(SAMPLE_DIR, DEFAULT_SAMPLE);
+  const data = JSON.parse(fs.readFileSync(actualP, "utf-8")) as PatentRaw;
   return { ...data, inputNumber: num || data.inputNumber, source: "sample" };
 }
 
 export function listSamples(): { number: string; title: string; tag: string }[] {
-  return SAMPLE_FILES.map((f) => {
-    const data = JSON.parse(fs.readFileSync(path.join(SAMPLE_DIR, f), "utf-8")) as PatentRaw;
-    return {
-      number: data.inputNumber,
-      title: data.bibliography.inventionTitle,
-      tag: data.bibliography.ipcCodes[0] ?? "",
-    };
-  });
+  return ALL_SAMPLE_FILES.map((f) => {
+    const p = path.join(SAMPLE_DIR, f);
+    if (!fs.existsSync(p)) return null;
+    const data = JSON.parse(fs.readFileSync(p, "utf-8")) as PatentRaw;
+    return { number: data.inputNumber, title: data.bibliography.inventionTitle, tag: data.bibliography.ipcCodes[0] ?? "" };
+  }).filter((x): x is { number: string; title: string; tag: string } => x !== null);
 }
 
 // ------------------------------------------------------------
-//  HTTP 호출 유틸 (타임아웃 포함)
+//  HTTP 호출 유틸
 // ------------------------------------------------------------
-async function fetchXml(url: string, params: Record<string, string>, serviceKey: string): Promise<string> {
-  const qs = new URLSearchParams({ ...params, ServiceKey: serviceKey }).toString();
+async function fetchXml(url: string, params: Record<string, string>): Promise<string> {
+  const qs = new URLSearchParams(params).toString();
   const full = `${url}?${qs}`;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
@@ -220,158 +233,191 @@ async function fetchXml(url: string, params: Record<string, string>, serviceKey:
   }
 }
 
-/** FALLBACK_CODES 에 해당하는 resultCode면 throw (상위에서 다음 단계 폴백 트리거) */
-function assertUsable(xml: string): void {
-  const code = resultCode(xml);
-  if (code && FALLBACK_CODES.includes(code)) {
-    throw new Error(`KIPRIS resultCode ${code}`);
-  }
-  if (/SERVICE\s*KEY\s*IS\s*NOT\s*REGISTERED/i.test(xml)) {
-    throw new Error("KIPRIS SERVICE KEY IS NOT REGISTERED");
-  }
-}
+// ------------------------------------------------------------
+//  응답 파서 6종 (실측 필드명 기준)
+// ------------------------------------------------------------
 
 /**
- * 3단 폴백 API 호출:
- *   ① KIPRIS Plus 키가 있으면 plus.kipris.or.kr 로 호출
- *   ② 실패(resultCode 30/31 포함) 시 data.go.kr 키로 재시도
- *   ③ 둘 다 실패 시 throw → 호출 측에서 샘플 폴백
+ * API 1: 서지 파서
+ * 응답 구조: <biblioSummaryInfo> 블록 안에 모든 필드
+ * IPC는 <ipcInfo> 블록의 <ipcNumber>
  */
-async function callApi(
-  endpointPair: { plus: string; datagokr: string },
-  params: Record<string, string>
-): Promise<string> {
-  const plusKey = process.env.KIPRIS_PLUS_ACCESS_KEY ?? "";
-  const datagokrKey = process.env.DATA_GO_KR_SERVICE_KEY ?? "";
+function parseBibliography(xml: string, inputNum: string): Bibliography {
+  const body = blocks(xml, "biblioSummaryInfo")[0] ?? xml;
 
-  // ① KIPRIS Plus
-  if (plusKey && plusKey !== "발급받은_KIPRIS_Plus_AccessKey_입력") {
-    try {
-      const xml = await fetchXml(endpointPair.plus, params, plusKey);
-      assertUsable(xml);
-      return xml;
-    } catch {
-      // 31(상품 미신청) 등 → ②로 폴백
-    }
-  }
+  // IPC: ipcInfoArray > ipcInfo > ipcNumber
+  const ipcCodes = tagAll(xml, "ipcNumber").map(s => s.trim()).filter(Boolean);
 
-  // ② data.go.kr
-  if (datagokrKey && datagokrKey !== "발급받은_서비스키_입력") {
-    const xml = await fetchXml(endpointPair.datagokr, params, datagokrKey);
-    assertUsable(xml); // 여기서도 실패하면 throw → 샘플 폴백
-    return xml;
-  }
+  const regRaw = tag(body, "registerNumber");
 
-  throw new Error("no usable API key");
-}
-
-// ------------------------------------------------------------
-//  응답 파서 6종
-// ------------------------------------------------------------
-function parseBibliography(xml: string, num: string): Bibliography {
-  const body = blocks(xml, "item")[0] ?? xml;
-  const ipcRaw = tag(body, "ipcNumber") ?? tag(body, "ipcCode") ?? "";
-  const ipcCodes = ipcRaw
-    ? ipcRaw.split(/[,|;]/).map((s) => s.trim()).filter(Boolean)
-    : tagAll(xml, "ipcNumber");
   return {
-    applicationNumber: tag(body, "applicationNumber") ?? num,
-    registerNumber: tag(body, "registerNumber"),
-    inventionTitle:
-      tag(body, "inventionTitle") ?? tag(body, "inventionName") ?? "명칭 미확인",
+    applicationNumber: tag(body, "applicationNumber") ?? inputNum,
+    registerNumber: regRaw?.trim() || null,
+    inventionTitle: tag(body, "inventionTitle") ?? tag(body, "inventionName") ?? "명칭 미확인",
     applicationDate: tag(body, "applicationDate"),
     registerDate: tag(body, "registerDate"),
     openDate: tag(body, "openDate") ?? tag(body, "publicationDate"),
-    claimCount: toIntOrNull(tag(body, "claimCount") ?? tag(body, "claimNum")),
+    claimCount: toInt(tag(body, "claimCount")),
     ipcCodes,
     applicantName: tag(body, "applicantName"),
-    priorityNumber: tag(body, "priorityNumber"),
-    familyCount: toIntOrNull(tag(body, "familyCount")),
+    // 서지에 우선권·패밀리 없으면 null → 지표 N/A
+    priorityNumber: tag(body, "priorityNumber") ?? tag(body, "originalApplicationNumber"),
+    familyCount: toInt(tag(body, "familyCount")),
+    // 법적상태 원문 (registerStatus 필드)
+    registerStatus: tag(body, "registerStatus"),
+    finalDisposal: tag(body, "finalDisposal"),
   };
 }
 
-/** 15058125 등록사항(법적상태). 권리이전 변동은 여기서 다루지 않음(→ parseRightChanges). */
-function parseRegisterStatus(xml: string): RegisterStatus {
-  const legal = tag(xml, "registrationStatus") ?? tag(xml, "lastValue") ?? tag(xml, "legalStatus");
-  const registered = legal ? /등록|존속|유지/.test(legal) && !/소멸|포기|무효/.test(legal) : false;
+/**
+ * API 2: 등록사항 파서 (openapi/rest/RegistrationService)
+ * 주요 블록:
+ *  - registrationRightInfo: 등록번호·등록일·만료일·소멸일·소멸원인
+ *  - registrationRightHolderInfoA: 권리자 목록
+ *  - registrationFeeInfo: 연차료(startAnnual/lastAnnual/paymentDate)
+ *  - registrationLastRightHolderInfo: 현재 최종 권리자
+ *  - disappearanceFlag: N=유지 / Y=소멸
+ */
+function parseRegisterStatus(xml: string, bibStatus: string | null): RegisterStatus {
+  const rightInfo = blocks(xml, "registrationRightInfo")[0] ?? "";
+  const feeBlocks = blocks(xml, "registrationFeeInfo");
 
-  const fees: AnnualFeeRecord[] = blocks(xml, "item")
-    .map((b): AnnualFeeRecord | null => {
-      const yr = toIntOrNull(tag(b, "paymentYear") ?? tag(b, "annualYear"));
-      if (yr == null) return null;
-      return { paymentYear: yr, paymentDate: tag(b, "paymentDate") };
-    })
-    .filter((x): x is AnnualFeeRecord => x !== null);
-  const lastPaidYear = fees.length ? Math.max(...fees.map((f) => f.paymentYear)) : null;
+  // 법적상태: 서지의 registerStatus + disappearanceFlag 교차 확인
+  const disappearanceFlags = tagAll(xml, "disappearanceFlag");
+  const anyDisappeared = disappearanceFlags.some(f => f.trim() === "Y");
+  const terminationCause = tag(xml, "terminationCauseName");
+  const terminationDate = tag(xml, "terminationDate");
 
-  const holders = tagAll(xml, "rightHolderName").length
-    ? tagAll(xml, "rightHolderName")
-    : tagAll(xml, "applicantName");
+  // 서지 registerStatus 기준 (등록/소멸/포기/취하/거절)
+  const statusFromBib = bibStatus ?? "";
+  const registered =
+    !anyDisappeared &&
+    !terminationDate?.trim() &&
+    /등록/.test(statusFromBib) &&
+    !/소멸|포기|취하|무효/.test(statusFromBib);
+
+  // 연차료 블록: registrationFeeInfo > lastAnnual(납부 연차 끝), paymentDate
+  const fees: AnnualFeeRecord[] = feeBlocks.map((b): AnnualFeeRecord | null => {
+    const yr = toInt(tag(b, "lastAnnual") ?? tag(b, "startAnnual"));
+    if (yr == null) return null;
+    return { paymentYear: yr, paymentDate: tag(b, "paymentDate") };
+  }).filter((x): x is AnnualFeeRecord => x !== null);
+  const lastPaidYear = fees.length ? Math.max(...fees.map(f => f.paymentYear)) : null;
+
+  // 권리자: registrationRightHolderInfoA > rankCorrelatorName (권리자 타입)
+  // rightHolderInfo API와 달리 여기서는 타입 구분이 없으므로 모두 수집
+  const holderBlocks = blocks(xml, "registrationRightHolderInfoA");
+  const holders = holderBlocks
+    .map(b => tag(b, "rankCorrelatorName"))
+    .filter((n): n is string => !!n && !!n.trim());
+
+  // 최종 권리자 (registrationLastRightHolderInfo)
+  const lastHolder = tag(xml, "lastRightHolderName");
+  const effectiveHolders = holders.length ? holders : (lastHolder ? [lastHolder] : []);
 
   return {
-    legalStatus: legal,
+    legalStatus: statusFromBib || (registered ? "등록" : null),
     registered,
     lastPaidYear,
     annualFees: fees,
-    rightHolders: holders,
-    termExpiryDate: tag(xml, "termExpirationDate") ?? tag(xml, "expirationDate"),
-    extinctDate: tag(xml, "extinctionDate") ?? tag(xml, "extinctDate"),
-    extinctReason: tag(xml, "extinctionReason") ?? tag(xml, "extinctReason"),
+    rightHolders: effectiveHolders,
+    termExpiryDate: tag(rightInfo, "expirationDate"),
+    extinctDate: terminationDate?.trim() || null,
+    extinctReason: terminationCause?.trim() || null,
   };
 }
 
-/** 15058608 권리자 변동 이력 */
+/**
+ * API 3: 권리자 변동 파서 (openapi/rest/RightHolderService)
+ * 블록: rightHolderInfo
+ *  - rankCorrelatorType: "권리자" | "발명자"
+ *  - rankNumber: 순위 변동으로 이전 횟수 추정
+ *  - transferDate: 이전일 (있을 경우)
+ * 이전 횟수: rankNumber가 2 이상으로 올라간 횟수 또는
+ *   transferDate 비어있지 않은 권리자 레코드 수
+ */
 function parseRightChanges(xml: string): RightChanges {
-  const records: RightChangeRecord[] = blocks(xml, "item").map((b) => ({
-    rank: toIntOrNull(tag(b, "rank") ?? tag(b, "rightHolderRank")),
-    holderName: tag(b, "rightHolderName") ?? tag(b, "name"),
-    changeDate: tag(b, "changeDate") ?? tag(b, "registrationDate"),
-    changeType: tag(b, "changeType") ?? tag(b, "changeReason"),
+  const all = blocks(xml, "rightHolderInfo");
+  // 권리자 타입만 필터
+  const ownerBlocks = all.filter(b => {
+    const t = tag(b, "rankCorrelatorType") ?? "";
+    return t.includes("권리자");
+  });
+
+  const records: RightChangeRecord[] = ownerBlocks.map(b => ({
+    rank: toInt(tag(b, "rankNumber")),
+    holderName: tag(b, "rankCorrelatorName"),
+    changeDate: tag(b, "registrationDate"),
+    changeType: tag(b, "transferDate") ? "이전" : null,
   }));
-  const transferEvents = records.filter((r) =>
-    r.changeType ? /이전|양도|합병/.test(r.changeType) : false
-  );
-  const transferCount = transferEvents.length
-    ? transferEvents.length
-    : Math.max(0, records.length - 1);
+
+  // rankNumber 기준: 최대 순위 = 이전 횟수 (최초 설정=1, 이후 이전할 때마다 +1)
+  const maxRank = records.reduce((m, r) => Math.max(m, r.rank ?? 1), 1);
+  // transferDate 있는 레코드 수
+  const withTransfer = ownerBlocks.filter(b => {
+    const td = tag(b, "transferDate");
+    return td && td.trim();
+  }).length;
+
+  const transferCount = withTransfer > 0 ? withTransfer : Math.max(0, maxRank - 1);
+
   return { records, transferCount };
 }
 
+/**
+ * API 4: 심판 파서 (openapi/rest/judgmentInfoSearchService)
+ * 블록: TrialInfo
+ * TotalSearchCount: 전체 건수
+ */
 function parseTrials(xml: string): Trials {
-  const records: TrialRecord[] = blocks(xml, "item").map((b) => {
-    const status = tag(b, "trialStatus") ?? tag(b, "status");
+  const totalStr = tag(xml, "TotalSearchCount");
+  const total = toInt(totalStr) ?? 0;
+
+  if (total === 0) return { records: [] };
+
+  const trialBlocks = blocks(xml, "TrialInfo");
+  const records: TrialRecord[] = trialBlocks.map(b => {
+    const status = tag(b, "TrialStatus") ?? tag(b, "trialStatus") ?? tag(b, "status");
+    const trialType = tag(b, "JudgmentKindCodeName") ?? tag(b, "trialType") ?? tag(b, "TrialType") ?? "심판";
     const alive = status ? /계류|진행|심리/.test(status) : false;
     return {
-      trialType: tag(b, "trialType") ?? tag(b, "trialName") ?? "심판",
-      trialNumber: tag(b, "trialNumber"),
+      trialType,
+      trialNumber: tag(b, "TrialNumber") ?? tag(b, "trialNumber"),
       status,
       alive,
-      result: tag(b, "trialResult") ?? tag(b, "result"),
+      result: tag(b, "JudgmentResult") ?? tag(b, "trialResult") ?? tag(b, "result"),
     };
   });
+
   return { records };
 }
 
-function parseCitationList(xml: string): CitationRecord[] {
-  return blocks(xml, "item").map((b) => ({
-    citedDocNumber:
-      tag(b, "citationNumber") ??
-      tag(b, "citedDocNumber") ??
-      tag(b, "citingNumber") ??
-      tag(b, "documentNumber") ??
-      "-",
-    citedTitle: tag(b, "citationTitle") ?? tag(b, "inventionTitle") ?? tag(b, "title"),
+/**
+ * API 5: 후방인용 파서 (citationInfoV3)
+ * 블록: citationInfoV3
+ * 번호: OriginalcitationLiteraturenumber
+ */
+function parseBackwardCitations(xml: string): CitationRecord[] {
+  return blocks(xml, "citationInfoV3").map(b => ({
+    citedDocNumber: tag(b, "OriginalcitationLiteraturenumber") ?? tag(b, "StandardCitationLiteraturenumber") ?? "-",
+    citedTitle: null, // citationInfoV3에 제목 필드 없음
   }));
 }
 
-function parseCitations(backwardXml: string, forwardXml: string | null): Citations {
-  const backward = parseCitationList(backwardXml);
-  const forward = forwardXml ? parseCitationList(forwardXml) : [];
-  return { backward, forward, forwardAvailable: forwardXml !== null };
+/**
+ * API 6: 전방인용(피인용) 파서 (citingInfo)
+ * 블록: citingInfo
+ * 번호: ApplicationNumber (이 특허를 인용한 출원번호)
+ */
+function parseForwardCitations(xml: string): CitationRecord[] {
+  return blocks(xml, "citingInfo").map(b => ({
+    citedDocNumber: tag(b, "ApplicationNumber") ?? "-",
+    citedTitle: null,
+  }));
 }
 
 // ------------------------------------------------------------
-//  공개 진입점: 특허 1건 원천 데이터 취득
+//  공개 진입점
 // ------------------------------------------------------------
 export async function getPatentRaw(inputNumber: string): Promise<PatentRaw> {
   const num = normalizeNumber(inputNumber);
@@ -382,51 +428,150 @@ export async function getPatentRaw(inputNumber: string): Promise<PatentRaw> {
 
   const plusKey = process.env.KIPRIS_PLUS_ACCESS_KEY ?? "";
   const datagokrKey = process.env.DATA_GO_KR_SERVICE_KEY ?? "";
-  const hasAnyKey =
-    (plusKey && plusKey !== "발급받은_KIPRIS_Plus_AccessKey_입력") ||
-    (datagokrKey && datagokrKey !== "발급받은_서비스키_입력");
+  const hasPlusKey = plusKey && plusKey !== "발급받은_KIPRIS_Plus_AccessKey_입력";
+  const hasDataKey = datagokrKey && datagokrKey !== "발급받은_서비스키_입력";
 
-  // 2) 사용 가능한 키가 없으면 즉시 샘플 폴백
-  if (!hasAnyKey) {
+  if (!hasPlusKey && !hasDataKey) {
     return loadSample(num);
   }
 
-  const param: Record<string, string> = isApplicationNumber(num)
+  const appParam: Record<string, string> = isApplicationNumber(num)
     ? { applicationNumber: num }
     : { registerNumber: num };
 
   try {
-    // 핵심 5종 동시 호출 (3단 폴백 callApi 사용)
-    const [bibXml, regXml, changeXml, trialXml, citBackXml] = await Promise.all([
-      callApi(ENDPOINTS.bibliography, param),
-      callApi(ENDPOINTS.registerStatus, param),
-      callApi(ENDPOINTS.rightChange, param),
-      callApi(ENDPOINTS.trial, param),
-      callApi(ENDPOINTS.citationBackward, param),
+    // ── STEP 1: 서지 취득 (등록번호 확보 목적도 겸함) ──
+    let bibXml: string;
+    if (hasPlusKey) {
+      bibXml = await fetchXml(EP.bib.plus, { ...appParam, ServiceKey: plusKey });
+      if (hasErrorCode(bibXml)) {
+        if (!hasDataKey) throw new Error("bib API error, no fallback key");
+        bibXml = await fetchXml(EP.bib.datagokr, { ...appParam, ServiceKey: datagokrKey });
+      }
+    } else {
+      bibXml = await fetchXml(EP.bib.datagokr, { ...appParam, ServiceKey: datagokrKey });
+    }
+
+    if (hasErrorCode(bibXml)) throw new Error("bibliography API returned error");
+
+    const bib = parseBibliography(bibXml, num);
+
+    // 등록번호 추출 — API 2·3(openapi/rest) 호출에 필수
+    const regNumRaw = bib.registerNumber;
+    const regNum = toRegistrationNumber(regNumRaw); // "10-1513250-0000" → "1015132500000"
+
+    // ── STEP 2: 나머지 5종 병렬 호출 (Plus 키 필수, openapi/rest 계열) ──
+    if (!hasPlusKey) {
+      // Plus 키 없으면 등록사항/권리자/심판/인용은 N/A — 서지만 실데이터
+      const raw: PatentRaw = {
+        source: "live",
+        inputNumber: num,
+        bibliography: bib,
+        registerStatus: emptyRegisterStatus(bib.registerStatus),
+        rightChanges: { records: [], transferCount: 0 },
+        trials: { records: [] },
+        citations: { backward: [], forward: [], forwardAvailable: false },
+      };
+      writeCache(num, raw);
+      return raw;
+    }
+
+    const encKey = encodeURIComponent(plusKey);
+
+    // API 2: 등록사항 (등록번호 있을 때만)
+    const regPromise: Promise<string | null> = regNum
+      ? fetchXml(EP.reg, { registrationNumber: regNum, accessKey: plusKey })
+          .then(xml => (hasErrorCode(xml) ? null : xml))
+          .catch(() => null)
+      : Promise.resolve(null);
+
+    // API 3: 권리자 변동 (등록번호 있을 때만)
+    const rightPromise: Promise<string | null> = regNum
+      ? fetchXml(EP.rightHolder, { registrationNumber: regNum, accessKey: plusKey })
+          .then(xml => (hasErrorCode(xml) ? null : xml))
+          .catch(() => null)
+      : Promise.resolve(null);
+
+    // API 4: 심판
+    const trialPromise = fetchXml(EP.trial, {
+      applicationNumber: num,
+      docsStart: "1",
+      accessKey: plusKey,
+    }).catch(() => null);
+
+    // API 5: 후방인용
+    const citBackPromise = fetchXml(EP.citBack, {
+      applicationNumber: num,
+      accessKey: plusKey,
+    }).catch(() => null);
+
+    // API 6: 전방인용 (피인용) — 파라미터명 주의
+    const citFwdPromise = fetchXml(EP.citFwd, {
+      standardCitationApplicationNumber: num,
+      accessKey: plusKey,
+    }).catch(() => null);
+
+    void encKey; // suppress unused warning (used in URL encoding context above)
+
+    const [regXml, rightXml, trialXml, citBackXml, citFwdXml] = await Promise.all([
+      regPromise,
+      rightPromise,
+      trialPromise,
+      citBackPromise,
+      citFwdPromise,
     ]);
 
-    // 피인용(전방, 15002128)은 별도 상품 — 실패해도 전체를 막지 않음
-    let citForwardXml: string | null = null;
-    try {
-      citForwardXml = await callApi(ENDPOINTS.citationForward, param);
-    } catch {
-      citForwardXml = null;
-    }
+    // ── STEP 3: 파싱 ──
+    const registerStatus = regXml && hasItems(regXml)
+      ? parseRegisterStatus(regXml, bib.registerStatus)
+      : emptyRegisterStatus(bib.registerStatus);
+
+    const rightChanges = rightXml && hasItems(rightXml)
+      ? parseRightChanges(rightXml)
+      : { records: [], transferCount: 0 };
+
+    const trials = trialXml && hasItems(trialXml)
+      ? parseTrials(trialXml)
+      : { records: [] };
+
+    const backward = citBackXml && hasItems(citBackXml)
+      ? parseBackwardCitations(citBackXml)
+      : [];
+
+    const forwardAvailable = citFwdXml !== null;
+    const forward = forwardAvailable && hasItems(citFwdXml!)
+      ? parseForwardCitations(citFwdXml!)
+      : [];
 
     const raw: PatentRaw = {
       source: "live",
       inputNumber: num,
-      bibliography: parseBibliography(bibXml, num),
-      registerStatus: parseRegisterStatus(regXml),
-      rightChanges: parseRightChanges(changeXml),
-      trials: parseTrials(trialXml),
-      citations: parseCitations(citBackXml, citForwardXml),
+      bibliography: bib,
+      registerStatus,
+      rightChanges,
+      trials,
+      citations: { backward, forward, forwardAvailable },
     };
 
     writeCache(num, raw);
     return raw;
+
   } catch {
-    // 키 미등록/네트워크/파싱 실패 → 샘플 폴백 (UI 데모 배지 표시)
     return loadSample(num);
   }
+}
+
+/** 등록사항 API 실패 시 서지 정보만으로 최소한의 RegisterStatus 구성 */
+function emptyRegisterStatus(bibStatus: string | null): RegisterStatus {
+  const registered = bibStatus ? /등록/.test(bibStatus) && !/소멸|포기|취하|무효/.test(bibStatus) : false;
+  return {
+    legalStatus: bibStatus,
+    registered,
+    lastPaidYear: null,
+    annualFees: [],
+    rightHolders: [],
+    termExpiryDate: null,
+    extinctDate: null,
+    extinctReason: null,
+  };
 }

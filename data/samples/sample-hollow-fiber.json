@@ -1,0 +1,62 @@
+{
+  "source": "sample",
+  "inputNumber": "1020130028607",
+  "bibliography": {
+    "applicationNumber": "10-2013-0028607",
+    "registerNumber": "10-1513250-0000",
+    "inventionTitle": "중앙 배플과 이를 포함하는 가압식 중공사 분리막 모듈 및 이의 세정방법",
+    "applicationDate": "2013.03.18",
+    "registerDate": "2015.04.13",
+    "openDate": "2014.09.26",
+    "claimCount": 9,
+    "ipcCodes": ["B01D 65/02", "B01D 63/02", "B01D 69/08"],
+    "applicantName": "주식회사 에코니티",
+    "priorityNumber": null,
+    "familyCount": null,
+    "registerStatus": "등록",
+    "finalDisposal": "등록결정(일반)"
+  },
+  "registerStatus": {
+    "legalStatus": "등록",
+    "registered": true,
+    "lastPaidYear": 12,
+    "annualFees": [
+      { "paymentYear": 3, "paymentDate": "20150413" },
+      { "paymentYear": 4, "paymentDate": "20180117" },
+      { "paymentYear": 5, "paymentDate": "20190314" },
+      { "paymentYear": 6, "paymentDate": "20200310" },
+      { "paymentYear": 7, "paymentDate": "20210401" },
+      { "paymentYear": 8, "paymentDate": "20220324" },
+      { "paymentYear": 9, "paymentDate": "20230419" },
+      { "paymentYear": 10, "paymentDate": "20240305" },
+      { "paymentYear": 11, "paymentDate": "20250318" },
+      { "paymentYear": 12, "paymentDate": "20260323" }
+    ],
+    "rightHolders": ["주식회사 에코니티"],
+    "termExpiryDate": "20330318",
+    "extinctDate": null,
+    "extinctReason": null
+  },
+  "rightChanges": {
+    "records": [
+      { "rank": 1, "holderName": "주식회사 에코니티", "changeDate": "20150413", "changeType": null }
+    ],
+    "transferCount": 0
+  },
+  "trials": {
+    "records": []
+  },
+  "citations": {
+    "backward": [
+      { "citedDocNumber": "KR100445982 B1", "citedTitle": null },
+      { "citedDocNumber": "KR100000007 B1", "citedTitle": null }
+    ],
+    "forward": [
+      { "citedDocNumber": "1020100097046", "citedTitle": null },
+      { "citedDocNumber": "1020140132107", "citedTitle": null },
+      { "citedDocNumber": "1020140132112", "citedTitle": null },
+      { "citedDocNumber": "1020140132113", "citedTitle": null }
+    ],
+    "forwardAvailable": true
+  }
+}

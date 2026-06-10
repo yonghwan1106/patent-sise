@@ -1,0 +1,51 @@
+{
+  "source": "sample",
+  "inputNumber": "1020120089012",
+  "bibliography": {
+    "applicationNumber": "10-2012-0089012",
+    "registerNumber": "10-1707964-0000",
+    "inventionTitle": "배전반 시스템",
+    "applicationDate": "2012.08.13",
+    "registerDate": "2017.02.13",
+    "openDate": "2014.02.19",
+    "claimCount": 2,
+    "ipcCodes": ["H02B 1/24", "H02B 1/03", "H02B 15/00"],
+    "applicantName": "엘에스일렉트릭(주)",
+    "priorityNumber": null,
+    "familyCount": null,
+    "registerStatus": "등록",
+    "finalDisposal": "등록결정(일반)"
+  },
+  "registerStatus": {
+    "legalStatus": "등록",
+    "registered": true,
+    "lastPaidYear": 9,
+    "annualFees": [
+      { "paymentYear": 3, "paymentDate": "20170213" },
+      { "paymentYear": 4, "paymentDate": "20200123" },
+      { "paymentYear": 5, "paymentDate": "20210119" },
+      { "paymentYear": 6, "paymentDate": "20220112" },
+      { "paymentYear": 7, "paymentDate": "20230116" },
+      { "paymentYear": 8, "paymentDate": "20240108" },
+      { "paymentYear": 9, "paymentDate": "20250114" }
+    ],
+    "rightHolders": ["엘에스일렉트릭(주)"],
+    "termExpiryDate": "20320813",
+    "extinctDate": null,
+    "extinctReason": null
+  },
+  "rightChanges": {
+    "records": [
+      { "rank": 1, "holderName": "엘에스일렉트릭(주)", "changeDate": "20170213", "changeType": null }
+    ],
+    "transferCount": 0
+  },
+  "trials": {
+    "records": []
+  },
+  "citations": {
+    "backward": [],
+    "forward": [],
+    "forwardAvailable": true
+  }
+}
