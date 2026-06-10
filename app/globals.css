@@ -102,6 +102,74 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.section-band {
+  border-block: 1px solid var(--color-line);
+  background: linear-gradient(180deg, #ffffff 0%, #eef5f8 100%);
+}
+
+.hero-visual-frame,
+.visual-frame,
+.report-flow-image {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(200, 211, 226, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hero-visual-frame {
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+}
+
+.visual-frame {
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  box-shadow: 0 16px 42px rgba(11, 31, 58, 0.12);
+}
+
+.report-flow {
+  margin-top: 20px;
+}
+
+.report-flow-image {
+  aspect-ratio: 16 / 2.5;
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(11, 31, 58, 0.1);
+}
+
+.report-flow-image img {
+  object-position: center 56%;
+}
+
+.report-flow-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.report-flow-steps span {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-slate);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 8px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .report-flow-image {
+    aspect-ratio: 16 / 4.6;
+  }
+
+  .report-flow-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* 히어로 그라데이션 */
 .hero-grad {
   background:
@@ -145,6 +213,10 @@ body {
   }
   .no-print {
     display: none !important;
+  }
+  .section-band {
+    border-block: none !important;
+    background: #ffffff !important;
   }
   .print-only {
     display: block !important;

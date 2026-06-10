@@ -1,6 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import SearchForm from "@/components/SearchForm";
 import { listSamples } from "@/lib/kipris";
+
+const IMAGE_BASE = "/images/patent-sise";
 
 export default function Home() {
   const samples = listSamples();
@@ -14,36 +17,50 @@ export default function Home() {
     <div>
       {/* ── 히어로 ── */}
       <section className="hero-grad text-white">
-        <div className="mx-auto max-w-6xl px-5 pb-16 pt-14 sm:pt-20">
-          <span className="badge badge-mint">특허판 KB부동산 시세</span>
-          <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-[1.25] sm:text-[42px]">
-            특허 한 건의 <span className="text-mint">담보 적격성</span>을
-            <br className="hidden sm:block" /> 3분 만에 사전진단합니다.
-          </h1>
-          <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-white/80">
-            등록특허번호만 넣으면 IP담보대출·보증 신청이 가능한 상태인지, 13개 정량지표와 4축 점수,
-            그리고 은행 심사역이 읽는 XAI 여신심사 메모까지 한 번에 받아보세요.
-          </p>
-
-          {/* 가치 대비 */}
-          <div className="mt-7 grid max-w-2xl grid-cols-2 gap-3">
-            <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-              <div className="kicker text-white/50">공식 특허가치평가</div>
-              <div className="mt-1 text-lg font-bold text-white/90">4~6주 · 약 500만원</div>
-            </div>
-            <div className="rounded-xl border border-mint/40 bg-mint/10 p-4">
-              <div className="kicker text-mint">특허시세 사전진단</div>
-              <div className="mt-1 text-lg font-bold text-mint">3분 · 무료</div>
-            </div>
-          </div>
-
-          {/* 입력 폼 */}
-          <div className="mt-7 max-w-2xl">
-            <SearchForm size="lg" />
-            <p className="mt-2 text-xs text-white/55">
-              KIPRIS Plus 공공데이터(특허청·한국특허정보원) 기반 · 점수는 코드 직산, AI는 근거 서술만 담당
+        <div className="mx-auto grid max-w-6xl items-center gap-8 px-5 pb-16 pt-14 lg:grid-cols-[0.94fr_1.06fr] sm:pt-20">
+          <div>
+            <span className="badge badge-mint">특허판 KB부동산 시세</span>
+            <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-[1.25] sm:text-[42px]">
+              특허 한 건의 <span className="text-mint">담보 적격성</span>을
+              <br className="hidden sm:block" /> 3분 만에 사전진단합니다.
+            </h1>
+            <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-white/80">
+              등록특허번호만 넣으면 IP담보대출·보증 신청이 가능한 상태인지, 13개 정량지표와 4축 점수,
+              그리고 은행 심사역이 읽는 XAI 여신심사 메모까지 한 번에 받아보세요.
             </p>
+
+            {/* 가치 대비 */}
+            <div className="mt-7 grid max-w-2xl grid-cols-2 gap-3">
+              <div className="rounded-xl border border-white/15 bg-white/5 p-4">
+                <div className="kicker text-white/50">공식 특허가치평가</div>
+                <div className="mt-1 text-lg font-bold text-white/90">4~6주 · 약 500만원</div>
+              </div>
+              <div className="rounded-xl border border-mint/40 bg-mint/10 p-4">
+                <div className="kicker text-mint">특허시세 사전진단</div>
+                <div className="mt-1 text-lg font-bold text-mint">3분 · 무료</div>
+              </div>
+            </div>
+
+            {/* 입력 폼 */}
+            <div className="mt-7 max-w-2xl">
+              <SearchForm size="lg" />
+              <p className="mt-2 text-xs text-white/55">
+                KIPRIS Plus 공공데이터(특허청·한국특허정보원) 기반 · 점수는 코드 직산, AI는 근거 서술만 담당
+              </p>
+            </div>
           </div>
+
+          <figure className="hero-visual-frame no-print">
+            <Image
+              src={`${IMAGE_BASE}/patent-sise-hero-pipeline.png`}
+              width={2048}
+              height={1152}
+              priority
+              sizes="(min-width: 1024px) 540px, 100vw"
+              alt="특허번호 입력, KIPRIS 6종, 13지표 직산, 4축 등급, XAI 여신 메모, 3분 사전진단으로 이어지는 특허시세 데이터 파이프라인"
+              className="h-full w-full object-cover"
+            />
+          </figure>
         </div>
       </section>
 
@@ -85,6 +102,66 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── 시장 병목 ── */}
+      <section className="section-band">
+        <div className="mx-auto grid max-w-6xl items-center gap-7 px-5 py-12 lg:grid-cols-[0.92fr_1.08fr]">
+          <div>
+            <div className="kicker">IP금융 성장 · 담보대출 병목</div>
+            <h2 className="mt-1 text-xl font-bold text-navy">평가 병목을 3분 사전진단으로 줄입니다</h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              IP금융 잔액은 커졌지만 IP담보대출은 평가 비용과 시간이 입구에서 막고 있습니다.
+              특허시세는 공식 평가 전 단계에서 무료 관문 판정과 근거 있는 등급을 먼저 제공합니다.
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <SignalStat label="IP금융 잔액" value="12.4조" tone="up" />
+              <SignalStat label="IP담보대출" value="2.09조" tone="down" />
+              <SignalStat label="기존 평가" value="4~6주" tone="slow" />
+              <SignalStat label="사전진단" value="3분" tone="fast" />
+            </div>
+          </div>
+          <figure className="visual-frame no-print">
+            <Image
+              src={`${IMAGE_BASE}/ip-finance-bottleneck.png`}
+              width={2048}
+              height={1152}
+              sizes="(min-width: 1024px) 590px, 100vw"
+              alt="IP금융 12.4조 증가와 IP담보대출 2.09조 감소, 평가 병목, 4~6주와 500만원, 3분 무료 사전진단을 비교한 인포그래픽"
+              className="h-full w-full object-cover"
+            />
+          </figure>
+        </div>
+      </section>
+
+      {/* ── 데이터 흐름 ── */}
+      <section className="mx-auto max-w-6xl px-5 py-12">
+        <div className="grid items-center gap-7 lg:grid-cols-[1.05fr_0.95fr]">
+          <figure className="visual-frame no-print order-2 lg:order-1">
+            <Image
+              src={`${IMAGE_BASE}/kipris-data-map.png`}
+              width={2048}
+              height={1152}
+              sizes="(min-width: 1024px) 590px, 100vw"
+              alt="서지, 등록사항, 권리자 변동, 심판, 후방인용, 전방인용이 13지표와 권리성 기술성 활용성 금융적합성, XAI 메모로 이어지는 데이터 맵"
+              className="h-full w-full object-cover"
+            />
+          </figure>
+          <div className="order-1 lg:order-2">
+            <div className="kicker">KIPRIS 6종 · 13지표 · XAI 메모</div>
+            <h2 className="mt-1 text-xl font-bold text-navy">데이터가 점수를 만들고, AI는 근거를 설명합니다</h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              서지·등록사항·권리자 변동·심판·후방인용·전방인용 데이터를 13개 지표로 직산하고,
+              권리성·기술성·활용성·금융적합성 4축으로 정리합니다.
+            </p>
+            <div className="mt-5 grid gap-2 text-sm">
+              <FlowLine from="KIPRIS 6종" to="원천 데이터 필드 추적" />
+              <FlowLine from="13지표 직산" to="결측은 N/A, 추정값 없음" />
+              <FlowLine from="4축 등급" to="담보 적합성 A~E" />
+              <FlowLine from="XAI 메모" to="은행 심사역용 근거 서술" />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── 신뢰 요소 ── */}
       <section className="mx-auto max-w-6xl px-5 pb-16">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -102,6 +179,32 @@ export default function Home() {
           />
         </div>
       </section>
+    </div>
+  );
+}
+
+function SignalStat({ label, value, tone }: { label: string; value: string; tone: "up" | "down" | "slow" | "fast" }) {
+  const toneClass = {
+    up: "border-mint/40 bg-mintsoft/40 text-mint2",
+    down: "border-rose/40 bg-rosesoft/60 text-rose",
+    slow: "border-amber/40 bg-[#fbeedd] text-amber",
+    fast: "border-mint/40 bg-mintsoft/40 text-mint2",
+  }[tone];
+
+  return (
+    <div className={`rounded-lg border p-3 ${toneClass}`}>
+      <div className="kicker text-current/65">{label}</div>
+      <div className="mono mt-1 text-xl font-bold">{value}</div>
+    </div>
+  );
+}
+
+function FlowLine({ from, to }: { from: string; to: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2">
+      <span className="font-semibold text-navy">{from}</span>
+      <span className="text-mint2">→</span>
+      <span className="text-muted">{to}</span>
     </div>
   );
 }

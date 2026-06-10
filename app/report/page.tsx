@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getPatentRaw } from "@/lib/kipris";
 import { assess } from "@/lib/score";
 import { KIPRIS_API_LABEL } from "@/lib/types";
@@ -9,6 +10,8 @@ import PrintButton from "@/components/PrintButton";
 import SearchForm from "@/components/SearchForm";
 
 export const dynamic = "force-dynamic";
+
+const IMAGE_BASE = "/images/patent-sise";
 
 const GRADE_LABEL: Record<Grade, string> = {
   A: "담보 우량",
@@ -80,6 +83,7 @@ export default async function ReportPage({
 
       {/* ① 관문 판정 배너 */}
       <GateBanner gate={a.gate} />
+      <ReportDecisionStrip />
 
       {/* ② 등급 + ③ 레이더 */}
       <div className="mt-6 grid gap-5 lg:grid-cols-[340px_1fr]">
@@ -163,6 +167,30 @@ export default async function ReportPage({
 // ------------------------------------------------------------
 //  하위 표현 컴포넌트
 // ------------------------------------------------------------
+function ReportDecisionStrip() {
+  const steps = ["관문 판정", "등급 A~E", "원천근거 인용", "은행 제출용 요약"];
+
+  return (
+    <section className="report-flow no-print" aria-label="리포트 의사결정 흐름">
+      <figure className="report-flow-image">
+        <Image
+          src={`${IMAGE_BASE}/report-decision-strip.png`}
+          width={2048}
+          height={1152}
+          sizes="(min-width: 1024px) 1112px, 100vw"
+          alt="관문 판정, 등급 A~E, 원천근거 인용, 은행 제출용 요약으로 이어지는 리포트 의사결정 흐름"
+          className="h-full w-full object-cover"
+        />
+      </figure>
+      <div className="report-flow-steps">
+        {steps.map((step) => (
+          <span key={step}>{step}</span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function GateBanner({ gate }: { gate: Awaited<ReturnType<typeof assess>>["gate"] }) {
   const pass = gate.passed;
   return (
